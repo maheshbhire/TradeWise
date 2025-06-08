@@ -1,39 +1,68 @@
-from sklearn.linear_model import LogisticRegression
 import pandas as pd
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report
 import joblib
+import logging
+import os
 
-# Simulated data (replace with real historical signals)
-data = {
-    'sentiment': [1, 0, -1, 1, 0, 1, -1, 0, 1, -1],
-    'rf_pred': [1, 0, 0, 1, 1, 1, 0, 1, 1, 0],
-    'cpp_signal': [1, 0, 0, 1, 1, 0, 1, 1, 0, 1],
-    'should_buy': [1, 0, 0, 1, 1, 1, 0, 1, 1, 1]
-}
-df = pd.DataFrame(data)
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-X = df[['sentiment', 'rf_pred', 'cpp_signal']]
-y = df['should_buy']
+def train_logistic_regression():
+    """
+    Train a Logistic Regression model using historical data from training_data.csv.
+    """
+    try:
+        # Check if training data exists
+        if not os.path.exists("training_data.csv"):
+            logging.error("training_data.csv not found. Please run /api/generate_training_data endpoint first.")
+            raise FileNotFoundError("training_data.csv not found")
 
-model = LogisticRegression(random_state=42)
-model.fit(X, y)
-joblib.dump(model, 'lr_model.pkl')
-```
+        # Load data
+        df = pd.read_csv("training_data.csv")
+        logging.info(f"Loaded {len(df)} rows of training data")
 
-**Explanation**: Trains a Logistic Regression model on simulated signals (`sentiment`, `rf_pred`, `cpp_signal`) to predict `should_buy`. Saves the model to `lr_model.pkl`.
+        # Validate data
+        required_columns = ['sentiment', 'rf_pred', 'cpp_signal', 'should_buy']
+        for col in required_columns:
+            if col not in df.columns:
+                logging.error(f"Missing required column: {col}")
+                raise ValueError(f"Missing required column: {col}")
 
----
+        # Prepare features and target
+        X = df[['sentiment', 'rf_pred', 'cpp_signal']]
+        y = df['should_buy']
 
-#### 13. `backend/predict_lr.py` (New)
-<xaiArtifact artifact_id="59882e66-b275-40c0-a038-bc8e7afe1eeb" artifact_version_id="e1b89997-16da-4e92-b6a4-ab2c3d41bc3d" title="predict_lr.py" contentType="text/x-python">
-import sys
-import joblib
-import json
+        # Handle missing or invalid data
+        X = X.fillna(0)  # Replace NaN with 0
+        y = y.fillna(0).astype(int)
 
-model = joblib.load('lr_model.pkl')
-features = json.loads(sys.argv[1])
-pred = model.predict([[
-    features['sentiment'],
-    features['rf_pred'],
-    features['cpp_signal']
-]])
-print(pred[0])  # 1=Buy, 0=No Buy
+        # Split data for training and evaluation
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        logging.info(f"Training set size: {len(X_train)}, Test set size: {len(X_test)}")
+
+        # Train model
+        model = LogisticRegression(random_state=42)
+        model.fit(X_train, y_train)
+
+        # Evaluate model
+        y_pred = model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        report = classification_report(y_test, y_pred, target_names=['No Buy', 'Buy'])
+        logging.info(f"Model accuracy: {accuracy:.2f}")
+        logging.info("Classification Report:\n" + report)
+
+        # Save model
+        joblib.dump(model, 'lr_model.pkl')
+        logging.info("Logistic Regression model saved to lr_model.pkl")
+
+        return model
+
+    except Exception as e:
+        logging.error(f"Failed to train Logistic Regression model: {e}")
+        raise
+
+if __name__ == "__main__":
+    train_logistic_regression()
