@@ -17,20 +17,12 @@ void ProfitLoss(float open, float close, string name) {
     }
 }
 
-void wantTransact(string ans, int amount, float price) {
-    cout << "Enter the amount of stock for buying/selling: ";
-    cin >> amount;
-    cout << "\nWant to know the cost of buying or selling stock? Enter Y for yes and N for no\n";
-    cout << "Your Response: ";
-    cin >> ans;
-    transform(ans.begin(), ans.end(), ans.begin(), ::toupper);
-    if (ans == "Y") {
-        cout << "\nThe stock cost: " << amount * price << "\n";
-    } else if (ans == "N") {
-        cout << "\nOKAY\n\n";
-    } else {
-        cout << "\nInvalid Choice\n";
+// Modified to return the transaction cost instead of using console I/O
+float calculate_transaction_cost(int amount, float price, bool should_calculate) {
+    if (should_calculate) {
+        return amount * price;
     }
+    return 0.0;
 }
 
 void print_data(string name, string exchange, string currency, float open, float high, float low, float close, float volume, float change, float price) {
@@ -135,12 +127,12 @@ void execute_trading_strategy(TradingState& state, float current_price, string& 
         state.entryPrice = current_price;
         state.inPosition = true;
         state.lastSignalBuy = true;
-        wantTransact(ans, amount, current_price);
+        // Removed console I/O; amount and ans are now handled by the caller
     }
 
     if (state.inPosition && current_price >= state.stopLoss * 2) {
         cout << "Partial Exit: Selling 50% of position at " << current_price << "\n";
-        wantTransact(ans, amount, current_price);
+        // Removed console I/O
     }
 
     if (sellSignal && state.inPosition) {
@@ -149,18 +141,17 @@ void execute_trading_strategy(TradingState& state, float current_price, string& 
         state.lastSignalBuy = false;
         state.buySignalHigh = 0.0;
         state.buySignalTriggered = false;
-        wantTransact(ans, amount, current_price);
+        // Removed console I/O
     }
 }
 
-void Sendsignal(float price, float high, float low, string ans, int amount) {
+// Modified to return a signal instead of using console I/O
+string Sendsignal(float price, float high, float low) {
     if (price <= low) {
-        cout << "Sending Buying signal\n\n";
-        wantTransact(ans, amount, price);
+        return "buy";
     } else if (price >= high) {
-        cout << "Sending Selling signal\n\n";
-        wantTransact(ans, amount, price);
+        return "sell";
     } else {
-        cout << "Not suitable for buying and selling\nHappy Trading!!!\n\n";
+        return "hold";
     }
 }
