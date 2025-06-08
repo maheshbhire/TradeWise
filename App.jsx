@@ -43,30 +43,87 @@ function App() {
       {error && <p className="error">{error}</p>}
       {loading && <p className="loading">Loading...</p>}
       {stockData && (
-        <div className="stock-output">
-          <h2>{stockData.name} ({stockData.symbol})</h2>
-          <p>Exchange: {stockData.exchange}</p>
-          <p>Currency: {stockData.currency}</p>
-          <p>Price: ${stockData.price.toFixed(2)}</p>
-          <p>Open: {stockData.open.toFixed(2)}</p>
-          <p>High: {stockData.high.toFixed(2)}</p>
-          <p>Low: {stockData.low.toFixed(2)}</p>
-          <p>Close: {stockData.close.toFixed(2)}</p>
-          <p>Volume: {stockData.volume.toLocaleString()}</p>
-          <p>Change: {stockData.change.toFixed(2)}%</p>
-          <hr />
-          <h3>Signals</h3>
-          <p>Sentiment: {stockData.sentiment === 1 ? 'Positive' : stockData.sentiment === -1 ? 'Negative' : 'Neutral'}</p>
-          <p>Random Forest Prediction: {stockData.rf_pred ? 'Buy' : 'No Buy'}</p>
-          <p>C++ Trading Signal: {stockData.cpp_signal ? 'Buy' : 'No Buy'}</p>
-          <p><strong>Final Decision (Logistic Regression): {stockData.final_buy ? 'BUY' : 'NO BUY'}</strong></p>
-          <hr />
-          <h3>Analysis</h3>
-          <p>High Volume: {stockData.analysis.high_volume.toFixed(2)}</p>
-          <p>Low Volume: {stockData.analysis.low_volume.toFixed(2)}</p>
-          <p>Stop Loss: ${stockData.analysis.stop_loss.toFixed(2)}</p>
-          <p>Take Profit: ${stockData.analysis.take_profit.toFixed(2)}</p>
-          <p>Buy Signal (C++): {stockData.analysis.buy_signal ? 'Yes' : 'No'}</p>
+        <div className="dashboard-grid">
+          {/* Stock Overview */}
+          <div className="card overview">
+            <h2>{stockData.name} ({stockData.symbol})</h2>
+            <p><strong>Exchange:</strong> {stockData.exchange}</p>
+            <p><strong>Currency:</strong> {stockData.currency}</p>
+            <p><strong>Price:</strong> ${stockData.price.toFixed(2)}</p>
+            <p><strong>Change:</strong> {stockData.change.toFixed(2)}%</p>
+          </div>
+
+          {/* Price Chart */}
+          <div className="card chart">
+            <h3>Price Overview</h3>
+            <div className="chart-container">
+              ```chartjs
+              {
+                "type": "bar",
+                "data": {
+                  "labels": ["Open", "High", "Low", "Close"],
+                  "datasets": [{
+                    "label": "Price ($)",
+                    "data": [
+                      ${stockData.open.toFixed(2)},
+                      ${stockData.high.toFixed(2)},
+                      ${stockData.low.toFixed(2)},
+                      ${stockData.close.toFixed(2)}
+                    ],
+                    "backgroundColor": [
+                      "rgba(54, 162, 235, 0.7)",
+                      "rgba(75, 192, 192, 0.7)",
+                      "rgba(255, 99, 132, 0.7)",
+                      "rgba(153, 102, 255, 0.7)"
+                    ],
+                    "borderColor": [
+                      "rgba(54, 162, 235, 1)",
+                      "rgba(75, 192, 192, 1)",
+                      "rgba(255, 99, 132, 1)",
+                      "rgba(153, 102, 255, 1)"
+                    ],
+                    "borderWidth": 1
+                  }]
+                },
+                "options": {
+                  "scales": {
+                    "y": {
+                      "beginAtZero": false,
+                      "title": {
+                        "display": true,
+                        "text": "Price ($)"
+                      }
+                    }
+                  },
+                  "plugins": {
+                    "legend": {
+                      "display": false
+                    }
+                  }
+                }
+              }
+              ```
+            </div>
+          </div>
+
+          {/* Trading Signals */}
+          <div className="card signals">
+            <h3>Trading Signals</h3>
+            <p><strong>Sentiment:</strong> {stockData.sentiment === 1 ? 'Positive' : stockData.sentiment === -1 ? 'Negative' : 'Neutral'}</p>
+            <p><strong>Random Forest Prediction:</strong> {stockData.rf_pred ? 'Buy' : 'No Buy'}</p>
+            <p><strong>C++ Trading Signal:</strong> {stockData.cpp_signal ? 'Buy' : 'No Buy'}</p>
+            <p><strong>Final Decision (Logistic Regression):</strong> <span className={stockData.final_buy ? 'buy' : 'no-buy'}>{stockData.final_buy ? 'BUY' : 'NO BUY'}</span></p>
+          </div>
+
+          {/* Analysis */}
+          <div className="card analysis">
+            <h3>Analysis</h3>
+            <p><strong>High Volume:</strong> {stockData.analysis.high_volume.toFixed(2)}</p>
+            <p><strong>Low Volume:</strong> {stockData.analysis.low_volume.toFixed(2)}</p>
+            <p><strong>Stop Loss:</strong> ${stockData.analysis.stop_loss.toFixed(2)}</p>
+            <p><strong>Take Profit:</strong> ${stockData.analysis.take_profit.toFixed(2)}</p>
+            <p><strong>Buy Signal (C++):</strong> {stockData.analysis.buy_signal ? 'Yes' : 'No'}</p>
+          </div>
         </div>
       )}
     </div>
