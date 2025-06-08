@@ -4,37 +4,79 @@
 #include <jsoncpp/json/json.h>
 #include <fstream>
 #include <string>
+#include <stdexcept>
+#include <iostream>
 
 int main() {
     crow::SimpleApp app;
 
     CROW_ROUTE(app, "/api/stock")
     ([](const crow::request& req) {
+        // Validate ticker parameter
         auto ticker = req.url_params.get("ticker");
-        if (!ticker) return crow::response(400, "Ticker parameter is required");
+        if (!ticker) {
+            return crow::response(400, "Ticker parameter is required");
+        }
 
+        // Read API key from config.json
         Json::Value config;
         std::ifstream config_file("config.json", std::ifstream::binary);
-        if (!config_file.is_open()) return crow::response(500, "Failed to open config.json");
+        if (!config_file.is_open()) {
+            return crow::response(500, "Failed to open config.json");
+        }
 
-        config_file >> config;
+        try {
+            config_file >> config;
+        } catch (const std::exception& e) {
+            return crow::response(500, "Failed to parse config.json: " + std::string(e.what()));
+        }
+        config_file.close();
+
+        if (!config.isMember("api_key")) {
+            return crow::response(500, "API key missing in config.json");
+        }
         std::string api_key = config["api_key"].asString();
+        if (api_key.empty()) {
+            return crow::response(500, "API key is empty in config.json");
+        }
 
         // Step 1: Fetch stock data
-        float price = std::stof(get_price(ticker, api_key));
+        float price;
+        try {
+            std::string price_str = get_price(ticker, api_key);
+            if (price_str.empty()) {
+                return crow::response(500, "Failed to fetch stock price");
+            }
+            price = std::stof(price_str);
+        } catch (const std::exception& e) {
+            return crow::response(500, "Invalid price data: " + std::string(e.what()));
+        }
+
         Json::Value quote = get_stock_quote(ticker, api_key);
+        if (quote.isNull()) {
+            return crow::response(500, "Failed to fetch stock quote");
+        }
+
         std::vector<HistoricalData> history = get_historical_data(ticker, api_key, 300);
+        if (history.empty()) {
+            return crow::response(500, "Failed to fetch historical data");
+        }
 
         // Step 2: Extract required fields from quote
         std::string name = quote["name"].asString();
         std::string exchange = quote["exchange"].asString();
         std::string currency = quote["currency"].asString();
-        float open = std::stof(quote["open"].asString());
-        float high = std::stof(quote["high"].asString());
-        float low = std::stof(quote["low"].asString());
-        float close = std::stof(quote["close"].asString());
-        float volume = std::stof(quote["volume"].asString());
-        float change = std::stof(quote["change"].asString());
+        float open, high, low, close, volume, change;
+        try {
+            open = std::stof(quote["open"].asString());
+            high = std::stof(quote["high"].asString());
+            low = std::stof(quote["low"].asString());
+            close = std::stof(quote["close"].asString());
+            volume = std::stof(quote["volume"].asString());
+            change = std::stof(quote["change"].asString());
+        } catch (const std::exception& e) {
+            return crow::response(500, "Invalid stock quote data: " + std::string(e.what()));
+        }
 
         // Step 3: Run trading logic
         TradingState state;
@@ -46,6 +88,9 @@ int main() {
         // Step 4: Sentiment analysis
         std::string cmd = "python3 sentiment.py " + std::string(ticker);
         FILE* pipe = popen(cmd.c_str(), "r");
+        if (!pipe) {
+            return crow::response(500, "Failed to execute sentiment analysis");
+        }
         char buffer[128];
         std::string sentiment = "";
         while (fgets(buffer, sizeof buffer, pipe) != NULL) {
@@ -53,7 +98,12 @@ int main() {
         }
         pclose(pipe);
         sentiment.erase(sentiment.find_last_not_of("\n\r") + 1);
-        int sentiment_score = sentiment.empty() ? 0 : std::stoi(sentiment);
+        int sentiment_score;
+        try {
+            sentiment_score = sentiment.empty() ? 0 : std::stoi(sentiment);
+        } catch (const std::exception& e) {
+            return crow::response(500, "Invalid sentiment score: " + std::string(e.what()));
+        }
 
         // Step 5: Random Forest prediction
         std::string rf_cmd = "python3 predict_rf.py '{\"open\":" + std::to_string(open) +
@@ -62,26 +112,42 @@ int main() {
                              ",\"close\":" + std::to_string(close) +
                              ",\"volume\":" + std::to_string(volume) + "}'";
         pipe = popen(rf_cmd.c_str(), "r");
+        if (!pipe) {
+            return crow::response(500, "Failed to execute Random Forest prediction");
+        }
         std::string rf_pred = "";
         while (fgets(buffer, sizeof buffer, pipe) != NULL) {
             rf_pred += buffer;
         }
         pclose(pipe);
         rf_pred.erase(rf_pred.find_last_not_of("\n\r") + 1);
-        int rf_signal = rf_pred.empty() ? 0 : std::stoi(rf_pred);
+        int rf_signal;
+        try {
+            rf_signal = rf_pred.empty() ? 0 : std::stoi(rf_pred);
+        } catch (const std::exception& e) {
+            return crow::response(500, "Invalid Random Forest prediction: " + std::string(e.what()));
+        }
 
         // Step 6: Logistic Regression prediction
         std::string lr_cmd = "python3 predict_lr.py '{\"sentiment\":" + std::to_string(sentiment_score) +
                              ",\"rf_pred\":" + std::to_string(rf_signal) +
                              ",\"cpp_signal\":" + std::to_string(state.lastSignalBuy) + "}'";
         pipe = popen(lr_cmd.c_str(), "r");
+        if (!pipe) {
+            return crow::response(500, "Failed to execute Logistic Regression prediction");
+        }
         std::string lr_pred = "";
         while (fgets(buffer, sizeof buffer, pipe) != NULL) {
             lr_pred += buffer;
         }
         pclose(pipe);
         lr_pred.erase(lr_pred.find_last_not_of("\n\r") + 1);
-        bool final_buy = lr_pred.empty() ? false : (std::stoi(lr_pred) == 1);
+        bool final_buy;
+        try {
+            final_buy = lr_pred.empty() ? false : (std::stoi(lr_pred) == 1);
+        } catch (const std::exception& e) {
+            return crow::response(500, "Invalid Logistic Regression prediction: " + std::string(e.what()));
+        }
 
         // Step 7: Prepare JSON response
         crow::json::wvalue result;
