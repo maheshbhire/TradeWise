@@ -6,7 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Twitter API v2 Bearer Token (replace with your own)
-BEARER_TOKEN = "YOUR_BEARER_TOKEN_HERE"
+BEARER_TOKEN = "AAAAAAAAAAAAAAAAAAAAAEto2QEAAAAAiOf1NI9GeMpsIPyTs2W4q36vdV4%3DzwoEbFu5f7p6OSGImZaT5BZrftpTgwLViWdxPqdP9YNwg93PJq"
 
 # Initialize the Twitter API client
 client = tweepy.Client(bearer_token=BEARER_TOKEN)
